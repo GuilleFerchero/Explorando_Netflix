@@ -14,8 +14,19 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ```{r message=FALSE, warning=FALSE}
+#Instalamos Librerías
+
+library(tidyverse)
+library(lubridate)
+library(kableExtra)
+
+#Leemos los datos
+
+Base <- read_csv(file = "netflix_titles.csv")
+
+Base %>% 
+  head()
 
 
-summary(cars)
 ```
 
