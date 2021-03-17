@@ -3,4 +3,9 @@
 library(tidyverse)
 library(lubridate)
 
-#Leemos la data
+#Leemos los datos
+
+Base <- read_csv(file = "netflix_titles.csv")
+
+
+
