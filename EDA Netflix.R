@@ -7,5 +7,7 @@ library(lubridate)
 
 Base <- read_csv(file = "netflix_titles.csv")
 
+Base %>% 
+  head()
 
 
