@@ -2,7 +2,7 @@
 title: "EDA Netflix"
 author: "Ferchero Juan Guillermo"
 date: "16/3/2021"
-output: html_document
+output: html_document 
 ---
 
 ```{r setup, include=FALSE}
@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Explorando Netflix
 
-
+A continuación veremos algunas tecnicas de análisis exploratorio utilizando un dataset muy intersante que contiene productos de Netflix con sus respectivas variables. El dataset puede encontrarse en el [sitio](www.kaggle.com) de kaggle
 
 ```{r message=FALSE, warning=FALSE}
 #Instalamos Librerías
@@ -24,9 +24,17 @@ library(kableExtra)
 
 Base <- read_csv(file = "netflix_titles.csv")
 
+#Primera aproximación 
 Base %>% 
   head()
 
+#Limpiamos columnas
+
+
+
+
+#generamos objetos auxiliares para texto dinámico
+
+
 
 ```
-
