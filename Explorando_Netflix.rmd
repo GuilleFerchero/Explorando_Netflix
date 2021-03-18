@@ -6,14 +6,14 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
 ## Explorando Netflix
 
 A continuación veremos algunas tecnicas de análisis exploratorio utilizando un dataset muy intersante que contiene productos de Netflix con sus respectivas variables. El dataset puede encontrarse en el [sitio](www.kaggle.com) de kaggle
 
-```{r message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE, include=FALSE}
 #Instalamos Librerías
 
 library(tidyverse)
@@ -28,13 +28,64 @@ Base <- read_csv(file = "netflix_titles.csv")
 Base %>% 
   head()
 
+Base %>% 
+  str()
+
 #Limpiamos columnas
 
-
-
+Base$rating <- as.factor(Base$rating)
+Base$date_added <- mdy(Base$date_added)
+Base$Año <- year(Base$date_added)
+Base$show_id <- NULL
 
 #generamos objetos auxiliares para texto dinámico
 
+Desde <- Base %>% 
+  select(date_added) %>% 
+  arrange(date_added) %>% 
+  head(1) %>% 
+  pull()
+
+Hasta <- Base %>% 
+  select(date_added) %>% 
+  arrange(desc(date_added)) %>% 
+  head(1) %>% 
+  pull()
+
+cantidad <- nrow(Base)
+
+```
+
+La Base contiene `r cantidad` productos de Netflix emitidos desde `r Desde` hasta `r Hasta`. Veamos como es la distribución por el tipo de show.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+Tabla_1 <- Base %>% 
+  select(type) %>% 
+  group_by(type) %>% 
+  summarise(Total = n()) %>% 
+  mutate(Porcentaje = round(Total/sum(Total)*100,2)) %>% 
+  mutate(Etiqueta = paste0(Total, " ( % ", Porcentaje, ")"))
+
+ggplot(Tabla_1, aes(x = "" , y = Total, fill = type ))+
+  geom_bar(stat = "identity", width = 0.5)+
+  geom_text(aes(label = Etiqueta), position = position_stack(vjust = 0.5))+
+  scale_fill_manual(values = c("#f55951", "#f1e8e6"))+
+    labs(title = paste0("Dataset Netflix ",Desde, " - ", Hasta),
+       subtitle = "Tipos de Productos",
+       caption = "Kaggle",
+       x = "",
+       y = "")+
+  theme_minimal()+
+  theme(text = element_text(family = "Decima WE", color = "grey20"),
+        plot.title = element_text(family = "Times New Roman", hjust = 0.5, vjust = 0.5),
+        plot.subtitle = element_text( hjust = 0.5, vjust = 0.5),
+        legend.position = "bottom",
+        legend.title = element_blank())+
+  guides(fill = guide_legend(reverse = TRUE))+
+  coord_flip()
 
 
 ```
+
+
+
