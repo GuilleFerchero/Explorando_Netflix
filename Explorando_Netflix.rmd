@@ -14,9 +14,14 @@ knitr::opts_chunk$set(echo = FALSE)
 A continuación veremos algunas tecnicas de análisis exploratorio utilizando un dataset muy intersante que contiene productos de Netflix con sus respectivas variables. El dataset puede encontrarse en el [sitio](www.kaggle.com) de kaggle
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
+#Limpiamos ambiente de trabajo
+
+rm(list = ls())
+
 #Instalamos Librerías
 
 library(tidyverse)
+library("tidytext")
 library(lubridate)
 library(kableExtra)
 
@@ -58,6 +63,8 @@ cantidad <- nrow(Base)
 
 La Base contiene `r cantidad` productos de Netflix emitidos desde `r Desde` hasta `r Hasta`. Veamos como es la distribución por el tipo de show.
 
+# Series vs Películas
+
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 Tabla_1 <- Base %>% 
   select(type) %>% 
@@ -72,7 +79,7 @@ ggplot(Tabla_1, aes(x = "" , y = Total, fill = type ))+
   scale_fill_manual(values = c("#f55951", "#f1e8e6"))+
     labs(title = paste0("Dataset Netflix ",Desde, " - ", Hasta),
        subtitle = "Tipos de Productos",
-       caption = "Kaggle",
+       caption = "Fuente: Kaggle",
        x = "",
        y = "")+
   theme_minimal()+
@@ -87,5 +94,193 @@ ggplot(Tabla_1, aes(x = "" , y = Total, fill = type ))+
 
 ```
 
+Puede verse que la proporción mayoritaria está compuesta por películas. Veamos como  fue la evolución de esta segmentación.
 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+Tabla_2 <- Base %>% 
+  select(Año,type) %>%
+  filter(!is.na(Año)) %>%
+  filter(Año %in% c(2017:2020)) %>%
+  group_by(Año,type) %>% 
+  summarise(Total = n()) %>% 
+  mutate(Porcentaje = round(Total/sum(Total)*100,2)) %>% 
+  mutate(Etiqueta = paste0(Total, " ( % ", Porcentaje, ")"))
+
+
+Tablaaux <- Tabla_2 %>% 
+  select(Año) %>% 
+  filter(!duplicated(Año))
+
+filas <- nrow(Tablaaux)
+
+ggplot(Tabla_2, aes(x = "" , y = Total, fill = type ))+
+  geom_bar(stat = "identity", width = 1)+
+  geom_text(aes(label = Etiqueta), position = position_stack(vjust = 0.5), size =2.5)+
+  scale_fill_manual(values = c("#f55951", "#f1e8e6"))+
+    labs(title = paste0("Dataset Netflix ",Desde, " - ", Hasta),
+       subtitle = "Tipos de Productos",
+       caption = "Fuente: Kaggle",
+       x = "",
+       y = "")+
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5, vjust = 0.5),
+        plot.subtitle = element_text( hjust = 0.5, vjust = 0.5),
+        legend.position = "bottom",
+        legend.title = element_blank())+
+  guides(fill = guide_legend(reverse = TRUE))+
+  coord_flip()+
+  facet_wrap(~Año, nrow = filas)
+
+```
+Puede apreciarse un significativo crecimiento de la proporción de la oferta dedicada a las series.Veamos como se resuelve esta dicotomía al enfrentar las proporciones con la variable pais de origen. 
+Dado que la variable "country" puede contener varios paises debido a coproducciones, puede resultar util generar un nuevo dataframe con todos los paises por separado. 
+Luego, elaboraremos una nueva tabla que contenga las cifras de cada tipo de producción junto con el porcentaje que representa al interior de cada país. Estos son los 10 paises que encabezan el ranking
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+paises <- strsplit(Base$country, split = ", ")
+paises_split <- data.frame(tipo = rep(Base$type, sapply(paises, length)), paises = unlist(paises))
+
+paises_split$paises <- gsub(",","",paises_split$paises)
+
+prod_por_pais <- paises_split %>% 
+  filter(!is.na(paises)) %>%
+  group_by(paises,tipo) %>% 
+  summarise(total = n()) %>% 
+  arrange(desc(total)) %>% 
+  mutate(tipo = case_when(tipo == "Movie" ~ "Peliculas",
+                           tipo == "TV Show" ~ "TV"))
+
+
+
+prod_por_pais_spread <- prod_por_pais %>% 
+  spread(.,tipo,total) %>%
+  mutate_all(.,~replace(.,is.na(.),0)) %>% 
+  mutate(Total = Peliculas + TV) %>% 
+  mutate(Porc_Peliculas = round(Peliculas/Total*100,2)) %>% 
+  mutate(Porc_TV = round(TV/Total*100,2)) %>% 
+  mutate(Etiqueta_Peliculas = paste0(Peliculas, " ( % ", Porc_Peliculas, ")")) %>% 
+  mutate(Etiqueta_TV = paste0(TV, " ( % ", Porc_TV, ")")) %>% 
+  arrange(desc(Total))
+  
+Tabla_3 <- prod_por_pais_spread %>% 
+  select(paises,Etiqueta_Peliculas,Etiqueta_TV,Total) %>%
+  head(10)
+  
+#HACER TABLA CON KABLE
+
+kable(Tabla_3,align = "l",digits = 3,col.names = c("Paises","Películas","TV Show","Total"))%>% 
+        column_spec(1, bold = TRUE, color = "#006666") %>%
+  row_spec(0,background = "#004747", color = "white") %>% 
+  add_header_above(c(" " = 1,
+                     "Tipo de Productos"= 2,
+                     " " =1)) %>% 
+  kable_minimal()
+
+
+```
+
+
+Veamos la misma información en formato gráfico:
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+Tabla_4.1 <- prod_por_pais %>%
+  filter(tipo == "TV") %>% 
+  head(10)
+
+Tabla_4.2 <- prod_por_pais %>%
+  filter(tipo == "Peliculas") %>% 
+  head(10)
+
+Tabla_4.3 <- rbind(Tabla_4.1,Tabla_4.2) %>% 
+  mutate(tipo = as.factor(tipo),
+         paises = reorder_within(paises,total,tipo))
+
+ggplot(Tabla_4.3, aes(x=fct_reorder(paises,total), y=total, fill = tipo))+
+  geom_col(show.legend = FALSE)+
+  scale_fill_manual(values = c("#f55951", "#f1e8e6"))+
+  facet_wrap(~tipo, scales = "free_y")+
+  coord_flip()+
+  scale_x_reordered()+
+  scale_y_continuous(expand = c(0,0))+
+  labs(title = paste0("Dataset Netflix ",Desde, "-", Hasta),
+       subtitle = "Distribución de productos por país",
+       caption = "Fuente: Kaggle",
+       x = "",
+       y = "")+
+  theme_minimal()+
+  theme(plot.title = element_text( hjust = 0.5, vjust = 0.5),
+        plot.subtitle = element_text( hjust = 0.5, vjust = 0.5))
+  
+
+
+# HACER GRAFICO DOBLE
+
+
+```
+
+La gráfica evidencia que Estados Unidos es el principal proovedor de contenido de la plataforma con una distancia de mayor amplitud en el caso de las peliculas, donde India supera a Gran Bretaña en el segundo lugar.
+
+
+# Duración
+
+Veamos ahora la exploración de los contenidos según la duración.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+# Tabla_4 <- Base %>%
+#   select(country,type) %>%
+#   group_by(country,type) %>%
+#   summarise(Total = n()) %>%
+#   mutate(Porcentaje = round(Total/sum(Total)*100,2)) %>%
+#   mutate(Etiqueta = paste0(Total, " ( % ", Porcentaje, ")")) %>%
+#   arrange(country,Total) %>%
+#   ungroup() %>%
+#   mutate(Porcentaje_total = round(Total/sum(Total)*100,2))%>% 
+#   arrange(desc(Porcentaje_total)) %>% 
+#   mutate(Porcentaje_Acum = cumsum(Porcentaje_total)) %>%
+#   filter(!is.na(country)) 
+# 
+# Tabla_4.1 <- Tabla_4 %>%
+#   filter(Porcentaje_Acum < 70)
+# 
+# 
+# # Tabla_4 %>%
+# #   kbl(caption = "Paises") %>%
+# #   kable_classic(full_width = F, html_font = "Tahoma")
+
+
+```
 
